@@ -1,0 +1,1596 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grup Assessors & Associats DPS - Tiquets de Despeses</title>
+    <!-- Google Fonts: Nunito Sans (Primary) and Playfair Display (Display Accent for Editorial Aesthetic) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS (loaded from CDN for absolute speed and convenience) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              dps: {
+                red: '#CC0000',
+                redHover: '#B30000',
+                dark: '#1C1A17',
+                gray: '#F4F2EE',
+                lightGray: '#EBE7E0',
+                border: '#E2DDD5'
+              }
+            },
+            fontFamily: {
+              sans: ['"Nunito Sans"', 'sans-serif'],
+              serif: ['"Playfair Display"', 'Georgia', 'serif'],
+            }
+          }
+        }
+      }
+    </script>
+    
+    <!-- Material design icons (via Lucide for modern visual indicators) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- SheetJS (xlsx CDN) for high performance Excel exports -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+      body {
+        font-family: 'Nunito Sans', sans-serif;
+        background-color: #F4F2EE;
+        color: #1C1A17;
+      }
+      /* Clean transitions for navigation and forms */
+      .fade-in {
+        animation: fadeIn 0.25s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .editorial-title {
+        font-family: 'Playfair Display', Georgia, serif;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col font-sans selection:bg-dps-red selection:text-white pb-12">
+
+    <!-- TOP HEADER -->
+    <header class="bg-dps-dark text-white border-b border-[#2B2824] sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 py-4.5 flex flex-wrap justify-between items-center gap-4">
+        <!-- Brand Logo / Subtitle -->
+        <div class="flex items-center space-x-4">
+          <div class="text-2xl font-extrabold tracking-tight editorial-title italic">
+            GRUP <span class="text-dps-red font-black not-italic">DPS</span>
+          </div>
+          <div class="hidden sm:block border-l border-[#3E3932] pl-4">
+            <h1 class="text-[11px] font-black tracking-widest text-[#EBE7E0] uppercase">ASSESSORS & ASSOCIATS</h1>
+            <p class="text-[9px] uppercase tracking-wider text-neutral-400 font-bold mt-0.5">Control de Despeses i Tiquets</p>
+          </div>
+        </div>
+
+        <!-- Real-time Stats Widget inside Header -->
+        <div class="flex items-center gap-3 sm:gap-6 bg-[#2B2824] border border-[#3E3932] rounded-xl py-2 px-4 text-xs shadow-inner">
+          <div class="text-center">
+            <span class="block text-neutral-400 text-[9px] uppercase font-bold tracking-wider">Total Validat</span>
+            <span id="stat-total-validat" class="font-bold text-emerald-400 text-xs sm:text-sm tracking-tight">0.00 €</span>
+          </div>
+          <div class="w-px h-8 bg-[#3E3932]"></div>
+          <div class="text-center">
+            <span class="block text-neutral-400 text-[9px] uppercase font-bold tracking-wider">Pendents</span>
+            <span id="stat-total-pendents" class="font-bold text-amber-500 text-xs sm:text-sm">0</span>
+          </div>
+          <div class="w-px h-8 bg-[#3E3932]"></div>
+          <div class="text-center">
+            <span class="block text-neutral-400 text-[9px] uppercase font-bold tracking-wider">Tots</span>
+            <span id="stat-total-tiquets" class="font-bold text-white text-xs sm:text-sm">0</span>
+          </div>
+        </div>
+
+        <!-- Global Active User Selector -->
+        <div class="flex items-center gap-2">
+          <span class="hidden md:inline text-[9px] font-bold text-neutral-400 uppercase tracking-widest">Usuari:</span>
+          <div class="relative w-44">
+            <select id="user-global-select" onchange="changeGlobalUser(this.value)" class="w-full bg-[#2B2824] border border-[#3E3932] hover:border-[#524B41] text-white rounded-lg py-1.5 px-3 pr-8 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-dps-red cursor-pointer appearance-none transition duration-150">
+              <option value="Dominic Paredes">Dominic Paredes</option>
+              <option value="Joel">Joel</option>
+              <option value="Fàtima">Fàtima</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-neutral-400">
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN TABS NAVIGATION (DESKTOP / LAPTOP) -->
+      <nav class="bg-[#141210] border-t border-[#2B2824]">
+        <div class="max-w-7xl mx-auto px-4">
+          <div class="flex justify-start space-x-2">
+            <button onclick="switchTab('tab-tiquet')" id="btn-tab-tiquet" class="tab-btn px-4 py-3.5 text-xs font-extrabold uppercase tracking-widest border-b-2 border-transparent text-neutral-400 hover:text-white flex items-center gap-2 transition-all">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-dps-red"></i>
+              <span>+ Tiquet</span>
+            </button>
+            <button onclick="switchTab('tab-llistat')" id="btn-tab-llistat" class="tab-btn px-4 py-3.5 text-xs font-extrabold uppercase tracking-widest border-b-2 border-transparent text-neutral-400 hover:text-white flex items-center gap-2 transition-all">
+              <i data-lucide="list-filter" class="w-4 h-4"></i>
+              <span>Llistat</span>
+            </button>
+            <button onclick="switchTab('tab-validar')" id="btn-tab-validar" class="tab-btn px-4 py-3.5 text-xs font-extrabold uppercase tracking-widest border-b-2 border-transparent text-neutral-400 hover:text-white flex items-center gap-2 transition-all relative">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+              <span>Validar</span>
+              <span id="validation-nav-badge" class="hidden absolute top-1.5 right-1 bg-dps-red text-white text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold">0</span>
+            </button>
+            <button onclick="switchTab('tab-settings')" id="btn-tab-settings" class="tab-btn px-3.5 py-3.5 text-xs font-extrabold uppercase tracking-widest border-b-2 border-transparent text-neutral-400 hover:text-white flex items-center gap-1.5 transition-all" title="Configuració API">
+              <i data-lucide="settings" class="w-4.5 h-4.5"></i>
+              <span>⚙</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <!-- NOTIFICATION TOAST SYSTEM -->
+    <div id="toast-container" class="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- MAIN BODY CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 mb-20 sm:mb-6">
+
+      <!-- ================= TAB 1: + TIQUET ================= -->
+      <section id="tab-tiquet" class="tab-content fade-in hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Column 1: Image Capture and Compressor -->
+          <div class="lg:col-span-5 bg-white p-6.5 rounded-2xl border border-dps-border shadow-[0_4px_24px_-4px_rgba(28,26,23,0.06)] flex flex-col">
+            <h2 class="text-xl font-bold text-dps-dark border-b border-dps-lightGray pb-3.5 mb-5 flex items-center gap-2.5 editorial-title italic tracking-tight">
+              <i data-lucide="camera" class="text-dps-red w-5 h-5"></i>
+              Captura del tiquet
+            </h2>
+
+            <!-- DRAG & DROP & SELECT BOX -->
+            <div id="dropzone" class="border border-dashed border-[#A8A195] hover:border-dps-red rounded-xl p-8 text-center cursor-pointer transition-all bg-[#FAF9F6] flex flex-col items-center justify-center min-h-[240px] shadow-inner">
+              <input type="file" id="file-input" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+              <div id="dropzone-idle" class="flex flex-col items-center">
+                <div class="bg-red-50/70 text-dps-red p-4 rounded-full mb-3.5 border border-red-100/30">
+                  <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+                </div>
+                <p class="text-xs font-black text-neutral-700 tracking-wide">Arrossega la imatge aquí o fes clic per pujar</p>
+                <p class="text-[11px] text-neutral-400 mt-1 font-bold">S'admeten fotos directes des del mòbil</p>
+                <button type="button" onclick="triggerFileInput()" class="mt-4 bg-white border border-[#D5CFC5] hover:bg-[#FAF9F6] text-neutral-850 font-bold py-2 px-5 rounded-xl text-xs tracking-wide transition duration-150 inline-flex items-center gap-2.5 shadow-sm">
+                  <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                  Fer foto o triar arxiu
+                </button>
+              </div>
+            </div>
+
+            <!-- PREVIEW AREA -->
+            <div id="preview-container" class="mt-4 hidden flex-grow flex flex-col">
+              <div class="relative rounded-xl overflow-hidden border border-[#D5CFC5] bg-black flex justify-center max-h-[300px]">
+                <img id="image-preview" src="" alt="Tiquet" class="max-h-[300px] object-contain">
+                <button onclick="clearImage()" class="absolute top-2 right-2 bg-black/75 hover:bg-black text-white p-2 rounded-full transition duration-150" title="Eliminar imatge">
+                  <i data-lucide="trash" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <div class="mt-3.5 flex gap-2">
+                <button id="btn-ia-process" onclick="processWithAI()" class="flex-grow bg-dps-red hover:bg-dps-redHover text-white font-extrabold py-3 px-6 rounded-xl text-xs uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2.5">
+                  <span id="ia-btn-spinner" class="hidden animate-spin rounded-full h-4.5 w-4.5 border-2 border-white border-t-transparent"></span>
+                  <i id="ia-btn-icon" data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
+                  <span id="ia-btn-text">Extreure dades amb IA</span>
+                </button>
+              </div>
+            </div>
+            
+            <!-- HELP TIP ABOUT KEYS -->
+            <div id="keys-alert-banner" class="mt-4 p-4 rounded-xl bg-orange-50/70 border border-orange-150 text-[11px] text-orange-900 space-y-1 hidden">
+              <span class="font-extrabold flex items-center gap-2 uppercase tracking-wider text-[10px]">
+                <i data-lucide="alert-triangle" class="w-4 h-4 text-orange-600"></i> API no configurada
+              </span>
+              <p class="leading-relaxed">Has de configurar la API Key de Google Vision i Gemini a la pestanya <b>Configuració (⚙)</b> per fer servir el reconeixement lògic. Mentrestant, pots introduir les dades de forma manual.</p>
+            </div>
+          </div>
+
+          <!-- Column 2: Form edit & add -->
+          <div class="lg:col-span-7 bg-white p-6.5 rounded-2xl border border-dps-border shadow-[0_4px_24px_-4px_rgba(28,26,23,0.06)]">
+            <h2 class="text-xl font-bold text-dps-dark border-b border-dps-lightGray pb-3.5 mb-5 flex items-center gap-2.5 editorial-title italic tracking-tight">
+              <i data-lucide="file-edit" class="text-dps-red w-5 h-5"></i>
+              Dades de la despesa
+            </h2>
+
+            <form id="ticket-form" onsubmit="saveTicket(event)" class="space-y-4">
+              <!-- Grid columns for fields -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Date input -->
+                <div>
+                  <label for="form-date" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Data *</label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400 pointer-events-none">
+                      <i data-lucide="calendar" class="w-4 h-4"></i>
+                    </span>
+                    <input type="date" id="form-date" required class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 pl-9.5 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold transition-all">
+                  </div>
+                </div>
+
+                <!-- Provider input -->
+                <div>
+                  <label for="form-provider" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Proveïdor *</label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400 pointer-events-none">
+                      <i data-lucide="store" class="w-4 h-4"></i>
+                    </span>
+                    <input type="text" id="form-provider" required placeholder="Ex. Repsol, Mercadona, Restaurant..." class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 pl-9.5 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold placeholder-neutral-400 transition-all">
+                  </div>
+                </div>
+
+                <!-- Category input -->
+                <div>
+                  <label for="form-category" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Categoria *</label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400 pointer-events-none">
+                      <i data-lucide="tag" class="w-4 h-4"></i>
+                    </span>
+                    <select id="form-category" required class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 pl-9.5 pr-10 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold appearance-none cursor-pointer transition-all">
+                      <option value="Compra mercaderia">🛒 Compra mercaderia</option>
+                      <option value="Compra altres aprovisionaments">📦 Compra altres aprovisionaments</option>
+                      <option value="Altres (Decoració despatx)">🪴 Altres (Decoració despatx)</option>
+                      <option value="Allotjament">🏨 Allotjament</option>
+                      <option value="Benzina">⛽ Benzina</option>
+                      <option value="Autopistes">🛣️ Autopistes</option>
+                      <option value="Parking">🅿️ Parking</option>
+                      <option value="Dietes">🍽️ Dietes</option>
+                      <option value="Altres (A especificar)">📝 Altres (A especificar)</option>
+                      <option value="Invitacions clients/col·laboradors">🤝 Invitacions clients/col·laboradors</option>
+                      <option value="Altres (sancions)">⚠️ Altres (sancions)</option>
+                      <option value="Despeses personals">👤 Despeses personals</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-400">
+                      <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Payment input -->
+                <div>
+                  <label for="form-payment" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Forma de Pagament *</label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400 pointer-events-none">
+                      <i data-lucide="credit-card" class="w-4 h-4"></i>
+                    </span>
+                    <select id="form-payment" required class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 pl-9.5 pr-10 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold appearance-none cursor-pointer transition-all">
+                      <option value="Vises Grup DPS (4455/0101/0106)">💳 Vises Grup DPS (4455/0101/0106)</option>
+                      <option value="Vises personals Domi (551)">💳 Vises personals Domi (551)</option>
+                      <option value="Sancions (475)">⚠️ Sancions (475)</option>
+                      <option value="Efectiu">💵 Efectiu</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-400">
+                      <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Import input -->
+                <div>
+                  <label for="form-amount" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Import (€) *</label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400 pointer-events-none">
+                      <i data-lucide="euro" class="w-4 h-4"></i>
+                    </span>
+                    <input type="number" id="form-amount" step="0.01" min="0" required placeholder="0.00" class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 pl-9.5 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold transition-all">
+                  </div>
+                </div>
+
+                <!-- User selection explicitly -->
+                <div>
+                  <label for="form-user" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Persona del tiquet *</label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400 pointer-events-none">
+                      <i data-lucide="user" class="w-4 h-4"></i>
+                    </span>
+                    <select id="form-user" required class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 pl-9.5 pr-10 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold appearance-none cursor-pointer transition-all">
+                      <option value="Dominic Paredes">Dominic Paredes</option>
+                      <option value="Joel">Joel</option>
+                      <option value="Fàtima">Fàtima</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-neutral-400">
+                      <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Comment field -->
+              <div>
+                <label for="form-comment" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5">Comentaris / Especificacions</label>
+                <div class="relative">
+                  <span class="absolute top-3.5 left-3 text-neutral-400 pointer-events-none">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                  </span>
+                  <textarea id="form-comment" rows="3" placeholder="Afegeix més detalls d'interès obligatoris per despeses a especificar..." class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 pl-9.5 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold placeholder-neutral-400 transition-all"></textarea>
+                </div>
+              </div>
+
+              <!-- Active Form Buttons -->
+              <div class="pt-4 border-t border-dps-lightGray flex justify-end gap-3">
+                <button type="button" onclick="resetForm()" class="bg-[#FAF9F6] border border-[#D5CFC5] hover:bg-[#FAF9F6]/60 text-neutral-750 font-bold py-2.5 px-6 rounded-xl text-xs transition duration-150 shadow-sm">
+                  Netejar Camps
+                </button>
+                <button type="submit" class="bg-dps-red hover:bg-dps-redHover text-white font-extrabold py-2.5 px-6 rounded-xl text-xs uppercase tracking-widest transition-all shadow-md flex items-center gap-2">
+                  <i data-lucide="file-plus" class="w-4 h-4"></i>
+                  Afegir tiquet
+                </button>
+              </div>
+
+            </form>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================= TAB 2: LLLISTAT HISTÒRIC ================= -->
+      <section id="tab-llistat" class="tab-content fade-in hidden">
+        <div class="bg-white p-6.5 rounded-2xl border border-dps-border shadow-[0_4px_24px_-4px_rgba(28,26,23,0.06)]">
+          
+          <!-- Llistat Top bar (Filters + Search + Export Buttons) -->
+          <div class="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center border-b border-dps-lightGray pb-5 mb-5">
+            <!-- Filter state selectors -->
+            <div class="flex flex-wrap gap-2.5" id="llistat-filters">
+              <button onclick="filterLlistat('Tots')" id="btn-filter-Tots" class="px-4 py-2 text-xs font-extrabold uppercase tracking-wide rounded-xl border bg-dps-dark text-white border-dps-dark transition duration-150 shadow-sm cursor-pointer">
+                Tots
+              </button>
+              <button onclick="filterLlistat('Pendent')" id="btn-filter-Pendent" class="px-4 py-2 text-xs font-extrabold uppercase tracking-wide rounded-xl border bg-[#FAF9F6] text-neutral-600 border-[#D5CFC5] hover:bg-[#FAF9F6]/60 transition duration-150 cursor-pointer">
+                Pendents ⏳
+              </button>
+              <button onclick="filterLlistat('Validat')" id="btn-filter-Validat" class="px-4 py-2 text-xs font-extrabold uppercase tracking-wide rounded-xl border bg-[#FAF9F6] text-neutral-600 border-[#D5CFC5] hover:bg-[#FAF9F6]/60 transition duration-150 cursor-pointer">
+                Validats ✅
+              </button>
+              <button onclick="filterLlistat('Rebutjats')" id="btn-filter-Rebutjats" class="px-4 py-2 text-xs font-extrabold uppercase tracking-wide rounded-xl border bg-[#FAF9F6] text-neutral-600 border-[#D5CFC5] hover:bg-[#FAF9F6]/60 transition duration-150 cursor-pointer">
+                Rebutjats ❌
+              </button>
+            </div>
+
+            <!-- Search + Export Container -->
+            <div class="flex flex-wrap gap-3.5 w-full lg:w-auto items-center">
+              <!-- Search bar -->
+              <div class="relative flex-grow sm:flex-grow-0 sm:w-64">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-neutral-400 pointer-events-none">
+                  <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input type="text" id="search-bar" oninput="applyFilters()" placeholder="Cerca per proveïdor, persona..." class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2 pl-9.5 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-bold placeholder-neutral-400 transition-all">
+              </div>
+
+              <!-- Export Excel Button -->
+              <button onclick="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-850 text-white font-extrabold py-2 px-5 rounded-xl text-xs uppercase tracking-widest transition duration-150 flex items-center gap-2 shadow-md cursor-pointer" title="Descarrega resum Excel">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-250"></i>
+                Exportar Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- LLISTAT TABLE VIEW (Desktop) / CARDS (Mobile) -->
+          <div class="overflow-x-auto hidden md:block rounded-xl border border-dps-border">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-[#FAF9F6] border-b border-dps-border text-neutral-500 text-[10px] font-black uppercase tracking-widest">
+                  <th class="py-3 px-4.5 w-14 text-center">Tipus</th>
+                  <th class="py-3 px-4.5">Proveïdor</th>
+                  <th class="py-3 px-4.5">Data</th>
+                  <th class="py-3 px-4.5">Categoria</th>
+                  <th class="py-3 px-4.5">Forma de Pagament</th>
+                  <th class="py-3 px-4.5">Persona</th>
+                  <th class="py-3 px-4.5 text-right font-bold">Import</th>
+                  <th class="py-3 px-4.5 text-center">Estat</th>
+                  <th class="py-3 px-4.5 text-right w-24">Accions</th>
+                </tr>
+              </thead>
+              <tbody id="llistat-table-body" class="divide-y divide-dps-lightGray">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- MOBILE LIST CARDS -->
+          <div id="llistat-mobile-cards" class="md:hidden flex flex-col gap-3.5">
+            <!-- Injected via JavaScript -->
+          </div>
+
+          <!-- EMPTY STATE INDICATOR -->
+          <div id="llistat-empty-state" class="hidden text-center py-16 px-4 flex flex-col items-center">
+            <div class="bg-[#FAF9F6] border border-dps-border text-neutral-400 p-4.5 rounded-full mb-3.5">
+              <i data-lucide="inbox" class="w-9 h-9"></i>
+            </div>
+            <p class="font-extrabold text-neutral-800 text-sm uppercase tracking-wider">No s’ha trobat cap tiquet</p>
+            <p class="text-xs text-neutral-400 mt-1 font-bold">Modifica els filtres o afegeix un tiquet nou.</p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================= TAB 3: VALIDACIÓ (DOMI VIEW) ================= -->
+      <section id="tab-validar" class="tab-content fade-in hidden">
+        <div class="bg-white p-6.5 rounded-2xl border border-dps-border shadow-[0_4px_24px_-4px_rgba(28,26,23,0.06)]">
+          
+          <div class="border-b border-dps-lightGray pb-4.5 mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-dps-dark flex items-center gap-2.5 editorial-title italic tracking-tight">
+                <i data-lucide="shield-alert" class="text-dps-red w-5.5 h-5.5"></i>
+                Validació d'Administració (Domi)
+              </h2>
+              <p class="text-xs text-neutral-400 mt-0.5 font-bold">Control i aprovació de tiquets pendents de validació abans de l'exportació oficial.</p>
+            </div>
+            <div class="bg-amber-50 text-amber-800 border border-amber-200 text-xs py-1.5 px-3.5 rounded-xl font-bold" id="pending-counter-badge">
+              0 pendents de revisió
+            </div>
+          </div>
+
+          <!-- VALIDATION GRID / SPLIT FOR REVIEWING -->
+          <div id="validation-container" class="space-y-4">
+            <!-- Injected via JS -->
+          </div>
+
+          <!-- EMPTY STATE FOR VALIDATION -->
+          <div id="validation-empty-state" class="hidden text-center py-16 px-4 flex flex-col items-center">
+            <div class="bg-emerald-50 text-emerald-600 p-5 rounded-full mb-4.5 shadow-sm border border-emerald-100">
+              <i data-lucide="check-circle-2" class="w-12 h-12"></i>
+            </div>
+            <p class="font-extrabold text-[#1C1A17] text-base">Excel·lent feina, Domi!</p>
+            <p class="text-xs text-neutral-400 mt-1 max-w-sm font-bold">No hi ha tiquets de despeses pendents de revisió. Tots els tiquets s'han validat o rebutjat correctament.</p>
+            <button onclick="switchTab('tab-llistat')" class="mt-5 bg-dps-dark hover:bg-black text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all shadow-md cursor-pointer">
+                    <!-- ================= TAB 4: CONFIGURACIÓ (SETTINGS) ================= -->
+      <section id="tab-settings" class="tab-content fade-in hidden">
+        <div class="max-w-2xl mx-auto bg-white p-6.5 rounded-2xl border border-dps-border shadow-[0_4px_24px_-4px_rgba(28,26,23,0.06)]">
+          <h2 class="text-xl font-bold text-dps-dark border-b border-dps-lightGray pb-3.5 mb-5 flex items-center gap-2.5 editorial-title italic tracking-tight">
+            <i data-lucide="settings" class="text-dps-red w-5 h-5"></i>
+            Configuració de les claus d'API per a Extracció IA
+          </h2>
+          <p class="text-xs text-neutral-400 mb-5 leading-relaxed font-semibold">
+            La digitalització integra <b>Google Cloud Vision API (OCR)</b> per extreure les lletres del tiquet i, posteriorment, <b>Google Gemini API</b> per realitzar el raonament, organitzar els camps (proveïdor, import, data) i automatitzar completament el formulari. Les claus es guarden localment al navegador (localStorage).
+          </p>
+
+          <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-4">
+            <!-- Google Vision Key -->
+            <div>
+              <label for="settings-vision-key" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 flex justify-between">
+                <span>Google Cloud Vision API Key</span>
+                <span class="text-[9px] text-neutral-400 font-extrabold underline tracking-wide">Reconeixement (OCR)</span>
+              </label>
+              <input type="password" id="settings-vision-key" placeholder="AIzaSy..." class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 px-3.5 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-mono transition-all">
+            </div>
+
+            <!-- Gemini Key -->
+            <div>
+              <label for="settings-gemini-key" class="block text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 flex justify-between">
+                <span>Google Gemini API Key</span>
+                <span class="text-[9px] text-neutral-400 font-extrabold underline tracking-wide">Comprendre Text</span>
+              </label>
+              <input type="password" id="settings-gemini-key" placeholder="AIzaSy..." class="w-full bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-2.5 px-3.5 text-xs focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red text-neutral-800 font-mono transition-all">
+            </div>
+
+            <!-- Buttons -->
+            <div class="pt-4.5 border-t border-dps-lightGray flex flex-wrap justify-between items-center gap-3">
+              <!-- Demo Data loader -->
+              <button type="button" onclick="loadDemoData()" class="bg-[#FAF9F6] border border-[#D5CFC5] hover:bg-neutral-50 hover:border-neutral-400 text-neutral-800 font-bold py-2 px-4 rounded-xl text-xs transition duration-155 flex items-center gap-2 cursor-pointer shadow-sm">
+                <i data-lucide="database" class="w-3.5 h-3.5 text-dps-red"></i>
+                Carregar dades de prova
+              </button>
+
+              <div class="flex gap-2">
+                <button type="button" onclick="clearAllDataStorage()" class="border border-red-200 text-red-600 hover:bg-red-50/70 font-bold py-2 px-4 rounded-xl text-xs transition duration-150 cursor-pointer">
+                  Esborrar Tiquets
+                </button>
+                <button type="submit" class="bg-dps-red hover:bg-dps-redHover text-white font-extrabold py-2 px-5 rounded-xl text-xs tracking-widest uppercase transition-all shadow-md cursor-pointer">
+                  Guardar Claus
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <!-- Instructions FAQ Card -->
+          <div class="mt-6 p-5 bg-[#FAF9F6] border border-dps-border rounded-xl text-xs text-neutral-600 space-y-2.5 leading-relaxed">
+            <h3 class="font-extrabold text-[#1C1A17] flex items-center gap-2 uppercase tracking-widest text-[10px]">
+              <i data-lucide="info" class="w-4 h-4 text-dps-red"></i>
+              Com aconseguir les claus de l'API de Google?
+            </h3>
+            <ol class="list-decimal pl-4.5 space-y-1.5 text-neutral-500 font-semibold">
+              <li>Ves a la consola de <a href="https://aistudio.google.com" target="_blank" class="text-dps-red underline hover:text-black font-bold">Google AI Studio</a> per obtenir la teva clau gratis de <b>Gemini Key</b>.</li>
+              <li>Per a la clau de <b>Vision API</b>, accedeix a la consola de Google Cloud, habilita "Cloud Vision API" i genera una credencial de Clau d'API estàndard de projecte.</li>
+              <li>Si vols fer una prova immediatament, clica al botó <b>"Carregar dades de prova"</b> superior per veure i exportar dades reals sense connectar claus!</li>
+            </ol>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FLOATING TAB NAVIGATION BAR (MOBILE ONLY) -->
+    <div class="fixed bottom-0 inset-x-0 bg-dps-dark border-t border-neutral-800 text-white flex justify-around py-2 shadow-lg z-40 sm:hidden">
+      <button onclick="switchTab('tab-tiquet')" id="mob-tab-tiquet" class="tab-btn-mob flex flex-col items-center justify-center text-neutral-400 py-1 flex-1 transition duration-150">
+        <i data-lucide="plus-circle" class="w-5 h-5"></i>
+        <span class="text-[9px] mt-1 font-bold">+ Tiquet</span>
+      </button>
+      <button onclick="switchTab('tab-llistat')" id="mob-tab-llistat" class="tab-btn-mob flex flex-col items-center justify-center text-neutral-400 py-1 flex-1 transition duration-150">
+        <i data-lucide="list-filter" class="w-5 h-5"></i>
+        <span class="text-[9px] mt-1 font-bold">Llistat</span>
+      </button>
+      <button onclick="switchTab('tab-validar')" id="mob-tab-validar" class="tab-btn-mob flex flex-col items-center justify-center text-neutral-400 py-1 flex-1 transition duration-150 relative">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+        <span class="text-[9px] mt-1 font-bold">Validar</span>
+        <span id="validation-mob-badge" class="hidden absolute top-0.5 right-6 bg-dps-red text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">0</span>
+      </button>
+      <button onclick="switchTab('tab-settings')" id="mob-tab-settings" class="tab-btn-mob flex flex-col items-center justify-center text-neutral-400 py-1 flex-1 transition duration-150">
+        <i data-lucide="settings" class="w-5 h-5"></i>
+        <span class="text-[9px] mt-1 font-bold">⚙</span>
+      </button>
+    </div>
+
+    <!-- IMAGE SOURCE MODAL VIEW (LIGHTBOX) -->
+    <div id="image-modal" class="fixed inset-0 z-[110] bg-black/95 flex flex-col items-center justify-center p-4 transition-opacity duration-150 opacity-0 pointer-events-none" onclick="closeImageModal()">
+      <div class="absolute top-4 right-4 text-white hover:text-dps-red cursor-pointer transition" onclick="closeImageModal()">
+        <i data-lucide="x" class="w-8 h-8"></i>
+      </div>
+      <div class="max-w-3xl w-full max-h-[80vh] flex justify-center items-center" onclick="event.stopPropagation()">
+        <img id="modal-img" src="" alt="Ampliació Tiquet" class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-xl">
+      </div>
+      <p class="text-neutral-400 text-xs mt-4 text-center max-w-sm" id="modal-caption"></p>
+    </div>
+
+
+    <!-- ==================== MAIN JAVASCRIPT ==================== -->
+    <script>
+      // Global App State
+      let ticketsState = [];
+      let currentTab = 'tab-tiquet';
+      let currentFilter = 'Tots';
+      let uploadedImageBase64 = null;
+      
+      // Category & Payment Map configuration
+      const categoryEmojis = {
+        "Compra mercaderia": "🛒",
+        "Compra altres aprovisionaments": "📦",
+        "Altres (Decoració despatx)": "🪴",
+        "Allotjament": "🏨",
+        "Benzina": "⛽",
+        "Autopistes": "🛣️",
+        "Parking": "🅿️",
+        "Dietes": "🍽️",
+        "Altres (A especificar)": "📝",
+        "Invitacions clients/col·laboradors": "🤝",
+        "Altres (sancions)": "⚠️",
+        "Despeses personals": "👤"
+      };
+
+      // App Initialization
+      window.addEventListener('DOMContentLoaded', () => {
+        // Load data from LocalStorage
+        loadTicketsFromStorage();
+        loadSettingsFromStorage();
+        
+        // Initial Tab Select
+        switchTab('tab-tiquet');
+        
+        // Setup Drag and Drop events
+        const dropzone = document.getElementById('dropzone');
+        dropzone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropzone.classList.add('border-dps-red', 'bg-red-50/50');
+        });
+        
+        dropzone.addEventListener('dragleave', () => {
+          dropzone.classList.remove('border-dps-red', 'bg-red-50/50');
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('border-dps-red', 'bg-red-50/50');
+          if (e.dataTransfer.files.length > 0) {
+            processFile(e.dataTransfer.files[0]);
+          }
+        });
+
+        // Initialize Lucide SVG Icons
+        lucide.createIcons();
+      });
+
+      // Show temporary beautiful status alert
+      function showToast(title, text, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `p-4 rounded-xl border shadow-lg flex items-start gap-3 bg-white text-gray-700 pointer-events-auto transition duration-300 transform translate-y-2 opacity-0 fade-in border-l-4 ${
+          type === 'success' ? 'border-l-emerald-500 border-gray-100' : 
+          type === 'error' ? 'border-l-dps-red border-gray-100' : 
+          'border-l-amber-500 border-gray-100'
+        }`;
+        
+        const iconName = type === 'success' ? 'check-circle' : type === 'error' ? 'alert-octagon' : 'alert-circle';
+        const iconColor = type === 'success' ? 'text-emerald-500' : type === 'error' ? 'text-dps-red' : 'text-amber-500';
+
+        toast.innerHTML = `
+          <div class="${iconColor} mt-0.5">
+            <i data-lucide="${iconName}" class="w-5 h-5"></i>
+          </div>
+          <div class="flex-grow">
+            <h4 class="font-bold text-xs text-dps-dark">${title}</h4>
+            <p class="text-[11px] text-gray-500 mt-0.5">${text}</p>
+          </div>
+          <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 transition">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        `;
+        
+        container.appendChild(toast);
+        lucide.createIcons({attrs: {class: 'w-4 h-4'}});
+
+        // Auto trigger animations
+        setTimeout(() => {
+          toast.classList.remove('opacity-0', 'translate-y-2');
+        }, 10);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'translate-y-1');
+          setTimeout(() => toast.remove(), 300);
+        }, 5000);
+      }
+
+      // LocalStorage load of settings
+      function loadSettingsFromStorage() {
+        const vKey = localStorage.getItem('dps_vision_key') || '';
+        const gKey = localStorage.getItem('dps_gemini_key') || '';
+        const user = localStorage.getItem('dps_actual_user') || 'Dominic Paredes';
+
+        document.getElementById('settings-vision-key').value = vKey;
+        document.getElementById('settings-gemini-key').value = gKey;
+        document.getElementById('user-global-select').value = user;
+        document.getElementById('form-user').value = user;
+
+        checkKeysStatus(vKey, gKey);
+      }
+
+      function checkKeysStatus(vKey, gKey) {
+        const banner = document.getElementById('keys-alert-banner');
+        if (!vKey || !gKey) {
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+
+      // LocalStorage load of ticket entries
+      function loadTicketsFromStorage() {
+        const raw = localStorage.getItem('dps_tiquets');
+        if (raw) {
+          try {
+            ticketsState = JSON.parse(raw);
+          } catch(e) {
+            console.error("Error reading tiquets state", e);
+            ticketsState = [];
+          }
+        } else {
+          ticketsState = [];
+        }
+        recalculateStats();
+      }
+
+      // Change globally selected active user
+      function changeGlobalUser(val) {
+        localStorage.setItem('dps_actual_user', val);
+        document.getElementById('form-user').value = val;
+        showToast("Usuari canviat", `S'ha seleccionat l'usuari actiu: ${val}`, 'info');
+      }
+
+      // Switch active visual tabs
+      function switchTab(tabId) {
+        currentTab = tabId;
+        
+        // Hide all frames
+        document.querySelectorAll('.tab-content').forEach(element => {
+          element.classList.add('hidden');
+        });
+        
+        // Show current frame
+        document.getElementById(tabId).classList.remove('hidden');
+        
+        // Desktop nav button styles reset
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.remove('border-dps-red', 'text-white', 'text-neutral-200');
+          btn.classList.add('border-transparent', 'text-neutral-400');
+        });
+
+        // Mobile nav buttons classes reset
+        document.querySelectorAll('.tab-btn-mob').forEach(btn => {
+          btn.classList.remove('text-dps-red');
+          btn.classList.add('text-neutral-400');
+        });
+
+        // Activate Selected Button indicators
+        if (tabId === 'tab-tiquet') {
+          document.getElementById('btn-tab-tiquet').classList.add('border-dps-red', 'text-white');
+          document.getElementById('mob-tab-tiquet').classList.add('text-dps-red');
+        } else if (tabId === 'tab-llistat') {
+          document.getElementById('btn-tab-llistat').classList.add('border-dps-red', 'text-white');
+          document.getElementById('mob-tab-llistat').classList.add('text-dps-red');
+          applyFilters();
+        } else if (tabId === 'tab-validar') {
+          document.getElementById('btn-tab-validar').classList.add('border-dps-red', 'text-white');
+          document.getElementById('mob-tab-validar').classList.add('text-dps-red');
+          renderValidationView();
+        } else if (tabId === 'tab-settings') {
+          document.getElementById('btn-tab-settings').classList.add('border-dps-red', 'text-white');
+          document.getElementById('mob-tab-settings').classList.add('text-dps-red');
+        }
+
+        lucide.createIcons();
+      }
+
+      // Drag and click triggers
+      function triggerFileInput() {
+        document.getElementById('file-input').click();
+      }
+
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+          processFile(file);
+        }
+      }
+
+      // Process and compress image before storage or API call
+      function processFile(file) {
+        if (!file.type.match('image.*')) {
+          showToast("Arxiu invàlid", "Siusplau, puja només arxius d'imatge vàlids (PNG, JPG, HEIC).", 'error');
+          return;
+        }
+
+        // Show standard uploading indicator
+        showToast("Processant fitxer", "Compresió de la imatge en curs...", 'info');
+        
+        // Compress image using HTML5 Canvas to handle mobile device photos cleanly without quota problems
+        compressImage(file, 700, 700, 0.75, function(compressedBase64) {
+          uploadedImageBase64 = compressedBase64;
+          
+          // Show visual preview container
+          document.getElementById('image-preview').src = compressedBase64;
+          document.getElementById('dropzone').classList.add('hidden');
+          document.getElementById('preview-container').classList.remove('hidden');
+          
+          showToast("Imatge llista", "La imatge s'ha preparat. Clica a 'Extreure dades amb IA' o omple els detalls.", 'success');
+        });
+      }
+
+      // Compresses image to standard sizes yielding tiny base64 strings saving storage size limits
+      function compressImage(file, maxWidth, maxHeight, quality, callback) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Fetch final JPEG string
+            const compressedUrl = canvas.toDataURL('image/jpeg', quality);
+            callback(compressedUrl);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function clearImage() {
+        uploadedImageBase64 = null;
+        document.getElementById('image-preview').src = '';
+        document.getElementById('preview-container').classList.add('hidden');
+        document.getElementById('dropzone').classList.remove('hidden');
+        document.getElementById('file-input').value = '';
+      }
+
+      // Core: Extraction with IA Integration (OCR + Gemini)
+      async function processWithAI() {
+        if (!uploadedImageBase64) {
+          showToast("Falta imatge", "Siusplau, puja primer la foto d'un tiquet.", 'error');
+          return;
+        }
+
+        const visionKey = localStorage.getItem('dps_vision_key');
+        const geminiKey = localStorage.getItem('dps_gemini_key');
+
+        if (!visionKey || !geminiKey) {
+          showToast("Manca de claus", "No s'han trobat les API Keys. Entra a 'Configuració (⚙)' per afegir-les.", 'error');
+          return;
+        }
+
+        // Visual loading spinner toggling
+        setIaLoadingState(true);
+
+        try {
+          // STEP 1: Execute OCR using Google Cloud Vision REST endpoint
+          showToast("Pas 1 de 2", "Iniciant reconeixement de text (OCR) amb Google Vision...", 'info');
+          
+          const rawBase64 = uploadedImageBase64.split(',')[1];
+          const visionEndpoint = `https://vision.googleapis.com/v1/images:annotate?key=${visionKey}`;
+          
+          const visionResponse = await fetch(visionEndpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+              requests: [
+                {
+                  image: { content: rawBase64 },
+                  features: [{ type: "TEXT_DETECTION" }]
+                }
+              ]
+            }),
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (!visionResponse.ok) {
+            throw new Error(`Vision API Error: ${visionResponse.statusText}`);
+          }
+
+          const visionData = await visionResponse.json();
+          const extractedText = visionData.responses?.[0]?.fullTextAnnotation?.text;
+
+          if (!extractedText) {
+            throw new Error("No s'ha pogut llegir cap text legible al tiquet amb OCR. Revisa la qualitat de la imatge.");
+          }
+
+          // STEP 2: Use structured Gemini query to parse text into standard categories
+          showToast("Pas 2 de 2", "Analitzant dades interpretades de despesa amb Gemini API...", 'info');
+
+          const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+          
+          const geminiPrompt = `Analitza el text complet extret d'un tiquet de caixa, rebut o factura gràcies a un programari de visió OCR.
+T'adjuntem el text a continuació:
+---
+${extractedText}
+---
+Extreu la informació de compra i retorna UNICAMENT un objecte JSON amb el següent format i restriccions exactes d'opcions:
+{
+  "fecha": "YYYY-MM-DD" o null si no la dectectes,
+  "proveedor": "Nom de pila de l'empresa o proveïdor (curt i net)" o null,
+  "importe": import total numèric en decimals format Float (utilitza . com a separador decimal de tota la vida, mai comes) o null,
+  "categoria": "Una d'aquestes exactes: 'Compra mercaderia', 'Compra altres aprovisionaments', 'Altres (Decoració despatx)', 'Allotjament', 'Benzina', 'Autopistes', 'Parking', 'Dietes', 'Altres (A especificar)', 'Invitacions clients/col·laboradors', 'Altres (sancions)', 'Despeses personals'",
+  "forma_pago": "Una d'aquestes exactes: 'Vises Grup DPS (4455/0101/0106)', 'Vises personals Domi (551)', 'Sancions (475)', 'Efectiu'" o null si no ho trobes clar,
+  "comentario": "Especificació breu d'aclariment"
+}
+
+Restringeix la resposta a un format JSON net i estricte, no hi posis codis de format Markdown tipus \`\`\`json ni cap text de presentació.`;
+
+          const geminiResponse = await fetch(geminiEndpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: geminiPrompt }]
+              }],
+              generationConfig: {
+                responseMimeType: "application/json"
+              }
+            }),
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (!geminiResponse.ok) {
+            throw new Error(`Gemini API Error: ${geminiResponse.statusText}`);
+          }
+
+          const geminiData = await geminiResponse.json();
+          const jsonText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+          if (!jsonText) {
+            throw new Error("No s'ha obtingut resposta estructurada de Gemini.");
+          }
+
+          // Parse results of Gemini extraction
+          const result = JSON.parse(jsonText.trim());
+          
+          // Populate fields
+          if (result.fecha) document.getElementById('form-date').value = result.fecha;
+          if (result.proveedor) document.getElementById('form-provider').value = result.proveedor;
+          if (result.importe) document.getElementById('form-amount').value = parseFloat(result.importe).toFixed(2);
+          if (result.categoria) document.getElementById('form-category').value = result.categoria;
+          if (result.forma_pago) document.getElementById('form-payment').value = result.forma_pago;
+          if (result.comentario) document.getElementById('form-comment').value = result.comentario;
+
+          showToast("Extracció IA correcta", "Dades del tiquet interpretades i col·locades al formulari. Revisa'ls abans de guardar.", 'success');
+
+        } catch (error) {
+          console.error("AI processing failure", error);
+          showToast("Error en l'extracció", error.message || "S'ha produït un error físic durant l'extracció i text de la imatge.", 'error');
+        } finally {
+          setIaLoadingState(false);
+        }
+      }
+
+      function setIaLoadingState(isLoading) {
+        const spinner = document.getElementById('ia-btn-spinner');
+        const icon = document.getElementById('ia-btn-icon');
+        const text = document.getElementById('ia-btn-text');
+        const btn = document.getElementById('btn-ia-process');
+
+        if (isLoading) {
+          spinner.classList.remove('hidden');
+          icon.classList.add('hidden');
+          text.textContent = "Analitzant tiquet ràpidament...";
+          btn.disabled = true;
+          btn.classList.add('bg-secondary-theme', 'opacity-70');
+        } else {
+          spinner.classList.add('hidden');
+          icon.classList.remove('hidden');
+          text.textContent = "Extreure dades amb IA";
+          btn.disabled = false;
+          btn.classList.remove('bg-secondary-theme', 'opacity-70');
+        }
+      }
+
+      // Save ticket to local db list
+      function saveTicket(e) {
+        e.preventDefault();
+
+        const date = document.getElementById('form-date').value;
+        const provider = document.getElementById('form-provider').value;
+        const category = document.getElementById('form-category').value;
+        const payment = document.getElementById('form-payment').value;
+        const amount = parseFloat(document.getElementById('form-amount').value);
+        const person = document.getElementById('form-user').value;
+        const comment = document.getElementById('form-comment').value;
+
+        if (!date || !provider || !category || !payment || isNaN(amount)) {
+          showToast("Camps obligatoris", "Has d'omplir tots els camps obligatoris marcats amb astèric.", 'error');
+          return;
+        }
+
+        // Model new ticket
+        const newTicket = {
+          id: 't_' + Date.now(),
+          data: date,
+          proveedor: provider,
+          categoria: category,
+          forma_pago: payment,
+          importe: amount,
+          persona: person,
+          comentario: comment,
+          estat: 'Pendent', // Always enters as pending to be validated by Domi
+          data_creacio: new Date().toISOString(),
+          imatge: uploadedImageBase64 || ''
+        };
+
+        // Add and save
+        ticketsState.unshift(newTicket);
+        saveTicketsToStorage();
+
+        // Notify user of saving
+        showToast("Tiquet registrat", `El tiquet de ${provider} s'ha guardat correctamente i està pendent d'aprovació per Domi.`, 'success');
+
+        // Reset inputs
+        resetForm();
+        clearImage();
+
+        // Redirect to histories list to check it
+        switchTab('tab-llistat');
+      }
+
+      function resetForm() {
+        document.getElementById('ticket-form').reset();
+        // Keep active global user
+        const activeUser = localStorage.getItem('dps_actual_user') || 'Dominic Paredes';
+        document.getElementById('form-user').value = activeUser;
+      }
+
+      // Local storage physical write
+      function saveTicketsToStorage() {
+        localStorage.setItem('dps_tiquets', JSON.stringify(ticketsState));
+        recalculateStats();
+        applyFilters();
+      }
+
+      // Stats counters in top section
+      function recalculateStats() {
+        let totalValidat = 0;
+        let countPendents = 0;
+        let countTotal = ticketsState.length;
+
+        ticketsState.forEach(ticket => {
+          if (ticket.estat === 'Validat') {
+            totalValidat += Number(ticket.importe || 0);
+          } else if (ticket.estat === 'Pendent') {
+            countPendents++;
+          }
+        });
+
+        // Format neatly using euro symbols
+        document.getElementById('stat-total-validat').textContent = `${totalValidat.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+        document.getElementById('stat-total-pendents').textContent = countPendents;
+        document.getElementById('stat-total-tiquets').textContent = countTotal;
+
+        // Validation notification badge updates
+        const valBadgeDesk = document.getElementById('validation-nav-badge');
+        const valBadgeMob = document.getElementById('validation-mob-badge');
+        const pendingBadgeTabVal = document.getElementById('pending-counter-badge');
+
+        if (countPendents > 0) {
+          valBadgeDesk.classList.remove('hidden');
+          valBadgeDesk.textContent = countPendents;
+          
+          valBadgeMob.classList.remove('hidden');
+          valBadgeMob.textContent = countPendents;
+        } else {
+          valBadgeDesk.classList.add('hidden');
+          valBadgeMob.classList.add('hidden');
+        }
+
+        if (pendingBadgeTabVal) {
+          pendingBadgeTabVal.textContent = `${countPendents} pendents de revisió`;
+        }
+      }
+
+      // List filtering actions
+      function filterLlistat(filterType) {
+        currentFilter = filterType;
+        
+        // Reset classes
+        document.querySelectorAll('#llistat-filters button').forEach(btn => {
+          btn.className = "px-4 py-2 text-xs font-bold rounded-full border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 transition duration-150";
+        });
+
+        // Highlight selected
+        const activeBtn = document.getElementById(`btn-filter-${filterType}`);
+        if (activeBtn) {
+          activeBtn.className = "px-4 py-2 text-xs font-bold rounded-full border bg-dps-dark text-white border-dps-dark transition duration-150 shadow-sm";
+        }
+
+        applyFilters();
+      }
+
+      // Filter logic and table generation
+      function applyFilters() {
+        const query = document.getElementById('search-bar').value.toLowerCase();
+        
+        let filtered = ticketsState;
+
+        // Apply state selector filter
+        if (currentFilter === 'Pendent') {
+          filtered = ticketsState.filter(t => t.estat === 'Pendent');
+        } else if (currentFilter === 'Validat') {
+          filtered = ticketsState.filter(t => t.estat === 'Validat');
+        } else if (currentFilter === 'Rebutjats') {
+          filtered = ticketsState.filter(t => t.estat === 'Rebutjat');
+        }
+
+        // Apply search query filter
+        if (query.trim() !== "") {
+          filtered = filtered.filter(t => 
+            (t.proveedor && t.proveedor.toLowerCase().includes(query)) ||
+            (t.persona && t.persona.toLowerCase().includes(query)) ||
+            (t.categoria && t.categoria.toLowerCase().includes(query)) ||
+            (t.comentario && t.comentario.toLowerCase().includes(query))
+          );
+        }
+
+        const tbody = document.getElementById('llistat-table-body');
+        const mobileContainer = document.getElementById('llistat-mobile-cards');
+        const emptyState = document.getElementById('llistat-empty-state');
+
+        tbody.innerHTML = '';
+        mobileContainer.innerHTML = '';
+
+        if (filtered.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        } else {
+          emptyState.classList.add('hidden');
+        }
+
+        // Inject elements
+        filtered.forEach(ticket => {
+          const emoji = categoryEmojis[ticket.categoria] || "📝";
+          const importFormatted = `<b>${Number(ticket.importe).toFixed(2)} €</b>`;
+          
+          let stateBadge = '';
+          if (ticket.estat === 'Validat') {
+            stateBadge = `<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-100 text-[10px] font-bold px-2 py-0.5 rounded-full">Validat ✅</span>`;
+          } else if (ticket.estat === 'Rebutjat') {
+            stateBadge = `<span class="inline-flex items-center gap-1 bg-red-50 text-red-800 border border-red-100 text-[10px] font-bold px-2 py-0.5 rounded-full">Rebutjat ❌</span>`;
+          } else {
+            stateBadge = `<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-100 text-[10px] font-bold px-2 py-0.5 rounded-full">Pendent ⏳</span>`;
+          }
+
+          // Build view image button if has base64 photo
+          const viewImageBtn = ticket.imatge ? 
+            `<button onclick="viewImage('${ticket.id}')" class="text-neutral-500 hover:text-dps-red p-1 rounded-lg hover:bg-neutral-50 transition cursor-pointer" title="Veure tiquet original">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>` : `<span class="text-neutral-300 pointer-events-none" title="No té foto"><i data-lucide="eye-off" class="w-4 h-4"></i></span>`;
+
+          // Desktop Table TR
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-[#FAF9F6] border-b border-dps-border text-xs text-neutral-800 transition duration-150";
+          tr.innerHTML = `
+            <td class="py-3.5 px-4.5 text-center text-lg">${emoji}</td>
+            <td class="py-3.5 px-4.5 font-bold text-dps-dark">
+              ${escapeHtml(ticket.proveedor)}
+              ${ticket.comentario ? `<span class="block text-[10px] text-neutral-400 font-semibold mt-0.5">${escapeHtml(ticket.comentario)}</span>` : ''}
+            </td>
+            <td class="py-3.5 px-4.5 text-neutral-500 font-extrabold">${ticket.data}</td>
+            <td class="py-3.5 px-4.5 text-neutral-700 font-extrabold">${ticket.categoria}</td>
+            <td class="py-3.5 px-4.5 text-neutral-500 text-[11px] font-bold">${ticket.forma_pago}</td>
+            <td class="py-3.5 px-4.5 font-extrabold text-neutral-800">${ticket.persona}</td>
+            <td class="py-3.5 px-4.5 text-right font-black text-dps-dark text-xs">${importFormatted}</td>
+            <td class="py-3.5 px-4.5 text-center">${stateBadge}</td>
+            <td class="py-3.5 px-4.5 text-right">
+              <div class="flex items-center justify-end gap-2">
+                ${viewImageBtn}
+                <button onclick="deleteTicket('${ticket.id}')" class="text-neutral-400 hover:text-dps-red p-1 rounded-lg hover:bg-neutral-50 transition cursor-pointer" title="Esborrar tiquet">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+
+          // Mobile View Card (highly responsive card)
+          const mCard = document.createElement('div');
+          mCard.className = "bg-white border border-dps-border rounded-xl p-4.5 flex flex-col gap-3 shadow-[0_2px_12px_-4px_rgba(28,26,23,0.03)]";
+          mCard.innerHTML = `
+            <div class="flex justify-between items-start gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="text-xl py-1 px-2.5 bg-[#FAF9F6] border border-[#EBE7E0] rounded-lg">${emoji}</span>
+                <div>
+                  <h4 class="font-extrabold text-dps-dark text-sm leading-tight">${escapeHtml(ticket.proveedor)}</h4>
+                  <p class="text-[10px] font-bold text-neutral-400 mt-0.5">${ticket.categoria}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="block text-sm font-black text-dps-dark">${Number(ticket.importe).toFixed(2)} €</span>
+                <span class="block text-[10px] text-neutral-400 font-bold mt-0.5">${ticket.data}</span>
+              </div>
+            </div>
+            
+            ${ticket.comentario ? `
+              <div class="p-2.5 bg-[#FAF9F6] rounded-xl text-[10px] text-neutral-600 font-bold border border-dps-border italic leading-relaxed">
+                "${escapeHtml(ticket.comentario)}"
+              </div>
+            ` : ''}
+
+            <div class="border-t border-dps-lightGray pt-3 flex justify-between items-center text-[10.5px] text-neutral-400 font-bold">
+              <div class="flex flex-col gap-0.5">
+                <span>Forma: <strong class="text-neutral-700">${ticket.forma_pago}</strong></span>
+                <span>Persona: <strong class="text-neutral-700">${ticket.persona}</strong></span>
+              </div>
+              <div>
+                ${stateBadge}
+              </div>
+            </div>
+
+            <div class="border-t border-dps-lightGray pt-2.5 flex justify-end gap-2.5">
+              ${ticket.imatge ? `
+                <button onclick="viewImage('${ticket.id}')" class="bg-[#FAF9F6] border border-[#D5CFC5] hover:bg-neutral-50 text-neutral-800 font-extrabold flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl transition text-[10px] cursor-pointer">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i> Veure foto
+                </button>
+              ` : ''}
+              <button onclick="deleteTicket('${ticket.id}')" class="border border-red-200 hover:bg-red-50 text-red-600 font-extrabold flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl transition text-[10px] cursor-pointer">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Esborrar
+              </button>
+            </div>
+          `;
+          mobileContainer.appendChild(mCard);
+        });
+
+        // Load Lucide SVG
+        lucide.createIcons();
+      }
+
+      // Safe HTML escaping
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      // Detailed Domi Review view
+      function renderValidationView() {
+        const container = document.getElementById('validation-container');
+        const emptyState = document.getElementById('validation-empty-state');
+        
+        container.innerHTML = '';
+        
+        const pending = ticketsState.filter(t => t.estat === 'Pendent');
+
+        if (pending.length === 0) {
+          container.classList.add('hidden');
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        container.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+
+        pending.forEach(ticket => {
+          const emoji = categoryEmojis[ticket.categoria] || "📝";
+          
+          const card = document.createElement('div');
+          card.className = "p-5.5 bg-white border border-dps-border rounded-2xl shadow-[0_4px_20px_-4px_rgba(28,26,23,0.04)] flex flex-col md:flex-row gap-5.5 items-stretch transition hover:shadow-[0_4px_24px_-4px_rgba(28,26,23,0.07)]";
+          
+          const commentMarkup = ticket.comentario ? `
+            <div class="mt-2 text-[10.5px] bg-[#FAF9F6] border border-dps-border p-3 rounded-xl text-neutral-600 font-bold italic leading-relaxed">
+              <span class="font-extrabold text-neutral-400 block text-[9px] uppercase tracking-widest mb-1">Comentaris:</span>
+              "${escapeHtml(ticket.comentario)}"
+            </div>
+          ` : '';
+
+          const previewSection = ticket.imatge ? `
+            <div class="w-full md:w-36 h-36 border border-[#D5CFC5] bg-neutral-900 rounded-xl overflow-hidden relative cursor-pointer flex-shrink-0 flex items-center justify-center group" onclick="viewImage('${ticket.id}')">
+              <img src="${ticket.imatge}" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                <i data-lucide="maximize" class="text-white w-5 h-5"></i>
+              </div>
+            </div>
+          ` : `
+            <div class="w-full md:w-36 h-36 bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl flex flex-col items-center justify-center text-neutral-400 p-2 text-center flex-shrink-0">
+              <i data-lucide="eye-off" class="w-6 h-6 mb-1 text-neutral-300"></i>
+              <span class="text-[9px] font-black uppercase tracking-wider">Sense foto</span>
+            </div>
+          `;
+
+          card.innerHTML = `
+            ${previewSection}
+            
+            <div class="flex-grow flex flex-col justify-between gap-4">
+              <div>
+                <div class="flex flex-wrap justify-between items-start gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xl py-0.5 px-2.5 bg-[#FAF9F6] border border-[#EBE7E0] rounded-lg">${emoji}</span>
+                    <h3 class="text-base font-extrabold text-dps-dark leading-snug">${escapeHtml(ticket.proveedor)}</h3>
+                  </div>
+                  <span class="text-lg font-black text-dps-dark">${Number(ticket.importe).toFixed(2)} €</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3.5 text-xs text-neutral-500 font-bold">
+                  <div>Data: <strong class="text-neutral-800">${ticket.data}</strong></div>
+                  <div>Categoria: <strong class="text-neutral-800">${ticket.categoria}</strong></div>
+                  <div>Persona: <strong class="text-neutral-800 font-black text-neutral-900">${ticket.persona}</strong></div>
+                  <div>Forma pagament: <strong class="text-neutral-800">${ticket.forma_pago}</strong></div>
+                </div>
+
+                ${commentMarkup}
+              </div>
+
+              <!-- Action buttons to validate / reject -->
+              <div class="pt-3 border-t border-dps-lightGray flex justify-end gap-3">
+                <button onclick="validateTicket('${ticket.id}', 'Rebutjat')" class="flex-grow sm:flex-grow-0 border border-red-200 text-red-650 hover:bg-red-50/60 font-extrabold py-2 px-5 rounded-xl text-xs transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer">
+                  <i data-lucide="x-circle" class="w-4 h-4"></i>
+                  Rebutjar Tiquet
+                </button>
+                <button onclick="validateTicket('${ticket.id}', 'Validat')" class="flex-grow sm:flex-grow-0 bg-emerald-750 hover:bg-emerald-850 text-white font-extrabold py-2 px-5 rounded-xl text-xs uppercase tracking-widest transition duration-150 flex items-center justify-center gap-1.5 shadow-md cursor-pointer">
+                  <i data-lucide="check-circle" class="w-4 h-4"></i>
+                  Validar Tiquet
+                </button>
+              </div>
+            </div>
+          `;
+          
+          container.appendChild(card);
+        });
+
+        lucide.createIcons();
+      }
+
+      // Action to alter state of ticket (Validat/Rebutjat)
+      function validateTicket(id, targetState) {
+        ticketsState = ticketsState.map(t => {
+          if (t.id === id) {
+            return { ...t, estat: targetState };
+          }
+          return t;
+        });
+
+        saveTicketsToStorage();
+
+        if (targetState === 'Validat') {
+          showToast("Aprovat correctament", "El tiquet s'ha mogut a l'estat Validat. S'inclourà als resums de despesa.", 'success');
+        } else {
+          showToast("Rebutjat", "El tiquet té l'estat Rebutjat. No comptarà per a les despeses generals.", 'error');
+        }
+
+        renderValidationView();
+      }
+
+      // Delete a ticket completely
+      function deleteTicket(id) {
+        if (confirm("Estàs segur que vols eliminar permanentment aquest tiquet de despesa?")) {
+          ticketsState = ticketsState.filter(t => t.id !== id);
+          saveTicketsToStorage();
+          showToast("Tiquet eliminat", "El tiquet s'ha descartat perfectament de la llista de dades.", 'info');
+        }
+      }
+
+      // Open Image Lightbox
+      function viewImage(id) {
+        const ticket = ticketsState.find(t => t.id === id);
+        if (ticket && ticket.imatge) {
+          const modal = document.getElementById('image-modal');
+          const mImg = document.getElementById('modal-img');
+          const mCaption = document.getElementById('modal-caption');
+
+          mImg.src = ticket.imatge;
+          mCaption.textContent = `Tiquet de "${ticket.proveedor}" per import de ${ticket.importe.toFixed(2)} € a nom de ${ticket.persona}.`;
+          
+          modal.classList.remove('pointer-events-none', 'opacity-0');
+          modal.classList.add('opacity-100');
+        }
+      }
+
+      function closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.add('pointer-events-none');
+        modal.classList.remove('opacity-100');
+        modal.style.opacity = '0';
+      }
+
+      // High Performance SheetJS Excel creation
+      function exportToExcel() {
+        if (ticketsState.length === 0) {
+          showToast("No hi ha dades", "No hi ha cap tiquet guardat oficialment per ser exportat a Excel.", 'error');
+          return;
+        }
+
+        try {
+          // EXCEL FILE CREATION
+          const categories = [
+            "Compra mercaderia",
+            "Compra altres aprovisionaments",
+            "Altres (Decoració despatx)",
+            "Allotjament",
+            "Benzina",
+            "Autopistes",
+            "Parking",
+            "Dietes",
+            "Altres (A especificar)",
+            "Invitacions clients/col·laboradors",
+            "Altres (sancions)",
+            "Despeses personals"
+          ];
+
+          const formesPago = [
+            "Vises Grup DPS (4455/0101/0106)",
+            "Vises personals Domi (551)",
+            "Sancions (475)",
+            "Efectiu"
+          ];
+
+          // FILTER ONLY APPROVED (VALIDATED) RECIPES FOR PIVOT SHEET 1
+          const approved = ticketsState.filter(t => t.estat === 'Validat');
+
+          // Sheet 1 Grid data build
+          const despesesRows = [];
+          
+          despesesRows.push(["CÈDULA RESUM DE DESPESES SOTA VALIDACIÓ - GRUP DPS"]);
+          despesesRows.push([`Generat el dia: ${new Date().toLocaleDateString('ca-ES')} a les ${new Date().toLocaleTimeString('ca-ES')}`]);
+          despesesRows.push([]); // Espai d'estil
+          
+          // Header Row
+          const headerRow = ["Categoria despesa", ...formesPago, "Suma Total"];
+          despesesRows.push(headerRow);
+
+          // Category rows calculations
+          let colTotals = Array(formesPago.length).fill(0);
+          let grandTotal = 0;
+
+          categories.forEach(cat => {
+            const row = [cat];
+            let rowTotal = 0;
+
+            formesPago.forEach((fp, idx) => {
+              const totalIntersect = approved
+                .filter(t => t.categoria === cat && t.forma_pago === fp)
+                .reduce((acc, current) => acc + Number(current.importe || 0), 0);
+              
+              row.push(totalIntersect);
+              colTotals[idx] += totalIntersect;
+              rowTotal += totalIntersect;
+            });
+
+            row.push(rowTotal);
+            grandTotal += rowTotal;
+            despesesRows.push(row);
+          });
+
+          // Footer total calculations row
+          const summaryTotalRow = ["Totals Generals (€)", ...colTotals, grandTotal];
+          despesesRows.push(summaryTotalRow);
+
+          // Sheet 2 "Detall" values of DB records
+          const detallRows = [];
+          detallRows.push([
+            "ID Tiquet", 
+            "Data", 
+            "Proveïdor", 
+            "Persona", 
+            "Categoria de Despesa", 
+            "Forma de Pagament", 
+            "Import (€)", 
+            "Estat de Validació", 
+            "Comentari", 
+            "Data Registre"
+          ]);
+
+          ticketsState.forEach(t => {
+            detallRows.push([
+              t.id || "",
+              t.data || "",
+              t.proveedor || "",
+              t.persona || "",
+              t.categoria || "",
+              t.forma_pago || "",
+              Number(t.importe || 0),
+              t.estat || "",
+              t.comentario || "",
+              new Date(t.data_creacio || Date.now()).toLocaleDateString()
+            ]);
+          });
+
+          // Generate workbook & inject sheets
+          const wb = XLSX.utils.book_new();
+
+          // Worksheets convert 
+          const wsDespeses = XLSX.utils.aoa_to_sheet(despesesRows);
+          const wsDetall = XLSX.utils.aoa_to_sheet(detallRows);
+
+          // Enable styling options if any on xlsx file format
+          XLSX.utils.book_append_sheet(wb, wsDespeses, "Despeses");
+          XLSX.utils.book_append_sheet(wb, wsDetall, "Detall");
+
+          // Save file matching requested structure
+          const dateSlug = new Date().toISOString().slice(0, 10);
+          XLSX.writeFile(wb, `Grup_DPS_Despeses_${dateSlug}.xlsx`);
+
+          showToast("Excel descarregat", "S'han desat correctament el resum de categories ('Despeses') i la taula de transaccions ('Detall').", 'success');
+        } catch(err) {
+          console.error("Excel generation error", err);
+          showToast("Error de descàrrega", "Ha fallat d'escriptura a l'arxiu Excel mitjançant SheetJS.", 'error');
+        }
+      }
+
+      // Settings saving to LocalStorage
+      function saveSettings(event) {
+        event.preventDefault();
+
+        const vKey = document.getElementById('settings-vision-key').value.trim();
+        const gKey = document.getElementById('settings-gemini-key').value.trim();
+
+        localStorage.setItem('dps_vision_key', vKey);
+        localStorage.setItem('dps_gemini_key', gKey);
+
+        checkKeysStatus(vKey, gKey);
+        showToast("Claus desades", "Preferències guardades localment de forma segura en aquest navegador.", 'success');
+        
+        switchTab('tab-tiquet');
+      }
+
+      // Restore simulation data for immediate verification testing
+      function loadDemoData() {
+        const demoMock = [
+          {
+            id: 't_demo1',
+            data: '2026-05-18',
+            proveedor: 'Benzi-Gas S.L.',
+            categoria: 'Benzina',
+            forma_pago: 'Vises Grup DPS (4455/0101/0106)',
+            importe: 55.40,
+            persona: 'Joel',
+            comentario: 'Dipòsit furgoneta transport',
+            estat: 'Validat',
+            data_creacio: '2026-05-18T10:15:22.000Z',
+            imatge: ''
+          },
+          {
+            id: 't_demo2',
+            data: '2026-05-20',
+            proveedor: 'Restaurant El Racó',
+            categoria: 'Dietes',
+            forma_pago: 'Efectiu',
+            importe: 42.50,
+            persona: 'Fàtima',
+            comentario: 'Dinar treball clients andorrans',
+            estat: 'Pendent',
+            data_creacio: '2026-05-20T14:22:18.000Z',
+            imatge: ''
+          },
+          {
+            id: 't_demo3',
+            data: '2526-05-21',
+            proveedor: 'Autopistas AP-7',
+            categoria: 'Autopistes',
+            forma_pago: 'Vises Grup DPS (4455/0101/0106)',
+            importe: 18.25,
+            persona: 'Dominic Paredes',
+            comentario: 'Peatge de tornada de Girona',
+            estat: 'Validat',
+            data_creacio: '2026-05-21T18:05:00.000Z',
+            imatge: ''
+          },
+          {
+            id: 't_demo4',
+            data: '2026-05-23',
+            proveedor: 'Barna Decor',
+            categoria: 'Altres (Decoració despatx)',
+            forma_pago: 'Vises personals Domi (551)',
+            importe: 120.00,
+            persona: 'Dominic Paredes',
+            comentario: 'Plantes i testos nous accés principal',
+            estat: 'Pendent',
+            data_creacio: '2026-05-23T09:12:12.000Z',
+            imatge: ''
+          },
+          {
+            id: 't_demo5',
+            data: '2026-05-24',
+            proveedor: 'Parquing SABA Tarragona',
+            categoria: 'Parking',
+            forma_pago: 'Vises personals Domi (551)',
+            importe: 8.50,
+            persona: 'Dominic Paredes',
+            comentario: 'Reunió amb llogaters',
+            estat: 'Validat',
+            data_creacio: '2026-05-24T12:00:10.000Z',
+            imatge: ''
+          },
+          {
+            id: 't_demo6',
+            data: '2026-05-25',
+            proveedor: 'Multa Trànsit Ajuntament',
+            categoria: 'Altres (sancions)',
+            forma_pago: 'Sancions (475)',
+            importe: 150.00,
+            persona: 'Joel',
+            comentario: 'Excès de velocitat AP-7',
+            estat: 'Rebutjat',
+            data_creacio: '2026-05-25T08:30:11.000Z',
+            imatge: ''
+          }
+        ];
+
+        ticketsState = demoMock;
+        saveTicketsToStorage();
+        showToast("Dades carregades", "S'han ingressat 6 tiquets d'exemple (Pendents, Aprovats i Rebutjats) per testejar directament.", 'success');
+        
+        // Redirect to list
+        switchTab('tab-llistat');
+      }
+
+      // Clears all storage parameters
+      function clearAllDataStorage() {
+        if (confirm("Atenció: Esborraràs absolutament la totalitat de tiquets que has guardat. Aquesta acció és irreversible. Continuar?")) {
+          ticketsState = [];
+          saveTicketsToStorage();
+          showToast("Històrics buidats", "S'han netejat tots els tiquets emmagatzemats.", 'info');
+        }
+      }
+    </script>
+  </body>
+</html>
