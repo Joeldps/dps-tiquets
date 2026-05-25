@@ -40,6 +40,10 @@
     <!-- SheetJS (xlsx CDN) for high performance Excel exports -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+    <!-- Firebase Compat SDK loads -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
     <style>
       body {
         font-family: 'Nunito Sans', sans-serif;
@@ -339,7 +343,7 @@
           <!-- Llistat Top bar (Filters + Search + Export Buttons) -->
           <div class="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center border-b border-dps-lightGray pb-5 mb-5">
             <!-- Filter state selectors -->
-            <div class="flex flex-wrap gap-2.5" id="llistat-filters">
+            <div class="flex flex-wrap gap-2.5 items-center" id="llistat-filters">
               <button onclick="filterLlistat('Tots')" id="btn-filter-Tots" class="px-4 py-2 text-xs font-extrabold uppercase tracking-wide rounded-xl border bg-dps-dark text-white border-dps-dark transition duration-150 shadow-sm cursor-pointer">
                 Tots
               </button>
@@ -352,6 +356,17 @@
               <button onclick="filterLlistat('Rebutjats')" id="btn-filter-Rebutjats" class="px-4 py-2 text-xs font-extrabold uppercase tracking-wide rounded-xl border bg-[#FAF9F6] text-neutral-600 border-[#D5CFC5] hover:bg-[#FAF9F6]/60 transition duration-150 cursor-pointer">
                 Rebutjats ❌
               </button>
+
+              <!-- Month/Year select filter -->
+              <div class="flex items-center gap-1.5 sm:ml-2 border-l border-dps-lightGray pl-3.5">
+                <span class="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-1">
+                  <i data-lucide="calendar" class="w-3.5 h-3.5 text-neutral-400"></i> Mes/Any:
+                </span>
+                <input type="month" id="filter-month" onchange="applyFilters()" class="bg-[#FAF9F6] border border-[#D5CFC5] rounded-xl py-1.5 px-3 text-xs text-neutral-800 font-bold focus:outline-none focus:ring-1 focus:ring-dps-red focus:border-dps-red transition-all cursor-pointer">
+                <button type="button" onclick="clearMonthFilter()" class="bg-gray-100 hover:bg-gray-200 text-neutral-600 font-bold py-1.5 px-3.5 rounded-xl text-xs transition duration-150 shadow-sm" title="Neteja el filtre de mes per veure tots els temps">
+                  Tots els mesos
+                </button>
+              </div>
             </div>
 
             <!-- Search + Export Container -->
@@ -555,6 +570,47 @@
       let currentTab = 'tab-tiquet';
       let currentFilter = 'Tots';
       let uploadedImageBase64 = null;
+
+      // Firebase Configuration & Initialization
+      const firebaseConfig = {
+        apiKey: "AIzaSyCIdX5sGGOFPyTlEEi4WsozqQ8hcQdWzls",
+        authDomain: "dps-tiquets-app-832e1.firebaseapp.com",
+        projectId: "dps-tiquets-app-832e1",
+        storageBucket: "dps-tiquets-app-832e1.firebasestorage.app",
+        messagingSenderId: "991485127696",
+        appId: "1:991485127696:web:f03fe9a39fd509b2172e95"
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      const OperationType = {
+        CREATE: 'create',
+        UPDATE: 'update',
+        DELETE: 'delete',
+        LIST: 'list',
+        GET: 'get',
+        WRITE: 'write'
+      };
+
+      function handleFirestoreError(error, operationType, path) {
+        const errInfo = {
+          error: error instanceof Error ? error.message : String(error),
+          authInfo: {
+            userId: null,
+            email: null,
+            emailVerified: null,
+            isAnonymous: null,
+            tenantId: null,
+            providerInfo: []
+          },
+          operationType,
+          path
+        };
+        console.error('Firestore Error: ', JSON.stringify(errInfo));
+        showToast("Error Firestore", "Error d'operació de dades (" + operationType + "): " + errInfo.error, "error");
+        throw new Error(JSON.stringify(errInfo));
+      }
       
       // Category & Payment Map configuration
       const categoryEmojis = {
@@ -574,8 +630,9 @@
 
       // App Initialization
       window.addEventListener('DOMContentLoaded', () => {
-        // Load data from LocalStorage
-        loadTicketsFromStorage();
+        // Initialize month/year filter and connect to Firebase Firestore
+        initMonthFilter();
+        loadTicketsFromFirestore();
         loadSettingsFromStorage();
         
         // Initial Tab Select
@@ -676,20 +733,37 @@
         }
       }
 
-      // LocalStorage load of ticket entries
-      function loadTicketsFromStorage() {
-        const raw = localStorage.getItem('dps_tiquets');
-        if (raw) {
-          try {
-            ticketsState = JSON.parse(raw);
-          } catch(e) {
-            console.error("Error reading tiquets state", e);
-            ticketsState = [];
-          }
-        } else {
-          ticketsState = [];
-        }
-        recalculateStats();
+      // Initialize month filter to current month in YYYY-MM format
+      function initMonthFilter() {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('filter-month').value = `${yyyy}-${mm}`;
+      }
+
+      function clearMonthFilter() {
+        document.getElementById('filter-month').value = '';
+        applyFilters();
+      }
+
+      // Realtime load of ticket entries from Firebase Firestore
+      function loadTicketsFromFirestore() {
+        db.collection("tiquets").orderBy("data_creacio", "desc").onSnapshot((snapshot) => {
+          const tickets = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            tickets.push({
+              id: doc.id,
+              ...data
+            });
+          });
+          ticketsState = tickets;
+          recalculateStats();
+          applyFilters();
+          renderValidationView();
+        }, (error) => {
+          handleFirestoreError(error, OperationType.LIST, "tiquets");
+        });
       }
 
       // Change globally selected active user
@@ -833,19 +907,23 @@
         const visionKey = localStorage.getItem('dps_vision_key') || 'AIzaSyBtSQQ5ygcblSrHXpsNk4YK5gQceXCBHIE';
         const geminiKey = localStorage.getItem('dps_gemini_key') || 'AIzaSyAp9Uea15RIo2lKr2DVUXyL_k6bM6fRJTE';
 
-        if (!visionKey || !geminiKey) {
-          showToast("Manca de claus", "No s'han trobat les API Keys. Entra a 'Configuració (⚙)' per afegir-les.", 'error');
+        if (!geminiKey) {
+          showToast("Manca de clau Gemini", "La clau de Gemini API és necessària per a extreure o processar dades.", 'error');
           return;
         }
 
         // Visual loading spinner toggling
         setIaLoadingState(true);
+        showToast("Analitzant tiquet...", "S'estan desxifrant les dades del tiquet amb intel·ligència artificial...", 'info');
 
+        const rawBase64 = uploadedImageBase64.split(',')[1];
+        const mimeType = uploadedImageBase64.split(';')[0].split(':')[1] || 'image/jpeg';
+
+        let extractedText = null;
+        let usedMultimodal = false;
+
+        // Try STEP 1: Vision API OCR
         try {
-          // STEP 1: Execute OCR using Google Cloud Vision REST endpoint
-          showToast("Pas 1 de 2", "Iniciant reconeixement de text (OCR) amb Google Vision...", 'info');
-          
-          const rawBase64 = uploadedImageBase64.split(',')[1];
           const visionEndpoint = `https://vision.googleapis.com/v1/images:annotate?key=${visionKey}`;
           
           const visionResponse = await fetch(visionEndpoint, {
@@ -862,27 +940,35 @@
           });
 
           if (!visionResponse.ok) {
-            throw new Error(`Vision API Error: ${visionResponse.statusText}`);
+            let errorDetails = '';
+            try {
+              const errBody = await visionResponse.json();
+              errorDetails = errBody.error?.message || JSON.stringify(errBody);
+            } catch (e) {
+              errorDetails = visionResponse.statusText || `HTTP Status ${visionResponse.status}`;
+            }
+            throw new Error(errorDetails);
           }
 
           const visionData = await visionResponse.json();
-          const extractedText = visionData.responses?.[0]?.fullTextAnnotation?.text;
+          extractedText = visionData.responses?.[0]?.fullTextAnnotation?.text;
 
           if (!extractedText) {
-            throw new Error("No s'ha pogut llegir cap text legible al tiquet amb OCR. Revisa la qualitat de la imatge.");
+            throw new Error("La imatge no conté text identificable per l'OCR.");
           }
 
-          // STEP 2: Use structured Gemini query to parse text into standard categories
-          showToast("Pas 2 de 2", "Analitzant dades interpretades de despesa amb Gemini API...", 'info');
+        } catch (visionError) {
+          console.warn("Vision API has failed or is restricted. Falling back to Gemini Multimodal direct processing...", visionError);
+          usedMultimodal = true;
+        }
 
+        // STEP 2: Process text/image with Gemini
+        try {
+          let geminiPrompt = '';
+          let requestBody = {};
           const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-          
-          const geminiPrompt = `Analitza el text complet extret d'un tiquet de caixa, rebut o factura gràcies a un programari de visió OCR.
-T'adjuntem el text a continuació:
----
-${extractedText}
----
-Extreu la informació de compra i retorna UNICAMENT un objecte JSON amb el següent format i restriccions exactes d'opcions:
+
+          const systemInstructions = `Retorna UNICAMENT un objecte JSON amb el següent format i restriccions exactes d'opcions:
 {
   "fecha": "YYYY-MM-DD" o null si no la dectectes,
   "proveedor": "Nom de pila de l'empresa o proveïdor (curt i net)" o null,
@@ -894,21 +980,60 @@ Extreu la informació de compra i retorna UNICAMENT un objecte JSON amb el segü
 
 Restringeix la resposta a un format JSON net i estricte, no hi posis codis de format Markdown tipus \`\`\`json ni cap text de presentació.`;
 
-          const geminiResponse = await fetch(geminiEndpoint, {
-            method: 'POST',
-            body: JSON.stringify({
+          if (usedMultimodal) {
+            geminiPrompt = `Analitza visualment aquesta imatge d'un tiquet de caixa, rebut o factura de compra. Estudia l'estructura, el proveïdor, la data, l'import total i el mètode de pagament.
+${systemInstructions}`;
+
+            requestBody = {
+              contents: [{
+                parts: [
+                  { text: geminiPrompt },
+                  {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: rawBase64
+                    }
+                  }
+                ]
+              }],
+              generationConfig: {
+                responseMimeType: "application/json"
+              }
+            };
+          } else {
+            geminiPrompt = `Analitza le text complet extret d'un tiquet de caixa, rebut o factura gràcies a un programari de visió OCR.
+T'adjuntem el text a continuació:
+---
+${extractedText}
+---
+Extreu la informació de compra.
+${systemInstructions}`;
+
+            requestBody = {
               contents: [{
                 parts: [{ text: geminiPrompt }]
               }],
               generationConfig: {
                 responseMimeType: "application/json"
               }
-            }),
+            };
+          }
+
+          const geminiResponse = await fetch(geminiEndpoint, {
+            method: 'POST',
+            body: JSON.stringify(requestBody),
             headers: { 'Content-Type': 'application/json' }
           });
 
           if (!geminiResponse.ok) {
-            throw new Error(`Gemini API Error: ${geminiResponse.statusText}`);
+            let errorDetails = '';
+            try {
+              const errBody = await geminiResponse.json();
+              errorDetails = errBody.error?.message || JSON.stringify(errBody);
+            } catch (e) {
+              errorDetails = geminiResponse.statusText || `HTTP Status ${geminiResponse.status}`;
+            }
+            throw new Error(`Gemini API Error: ${errorDetails}`);
           }
 
           const geminiData = await geminiResponse.json();
@@ -933,7 +1058,7 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
 
         } catch (error) {
           console.error("AI processing failure", error);
-          showToast("Error en l'extracció", error.message || "S'ha produït un error físic durant l'extracció i text de la imatge.", 'error');
+          showToast("Error en l'extracció", error.message || "S'ha produït un error físic durant l'extracció de la imatge.", 'error');
         } finally {
           setIaLoadingState(false);
         }
@@ -948,7 +1073,7 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
         if (isLoading) {
           spinner.classList.remove('hidden');
           icon.classList.add('hidden');
-          text.textContent = "Analitzant tiquet ràpidament...";
+          text.textContent = "Analitzant tiquet...";
           btn.disabled = true;
           btn.classList.add('bg-secondary-theme', 'opacity-70');
         } else {
@@ -960,8 +1085,8 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
         }
       }
 
-      // Save ticket to local db list
-      function saveTicket(e) {
+      // Save ticket to Firestore
+      async function saveTicket(e) {
         e.preventDefault();
 
         const date = document.getElementById('form-date').value;
@@ -977,9 +1102,11 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
           return;
         }
 
+        const ticketId = 't_' + Date.now();
+
         // Model new ticket
         const newTicket = {
-          id: 't_' + Date.now(),
+          id: ticketId,
           data: date,
           proveedor: provider,
           categoria: category,
@@ -992,19 +1119,23 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
           imatge: uploadedImageBase64 || ''
         };
 
-        // Add and save
-        ticketsState.unshift(newTicket);
-        saveTicketsToStorage();
+        showToast("Estalviant...", "S'està registrant el tiquet al núvol de Firestore...", "info");
 
-        // Notify user of saving
-        showToast("Tiquet registrat", `El tiquet de ${provider} s'ha guardat correctamente i està pendent d'aprovació per Domi.`, 'success');
+        try {
+          await db.collection("tiquets").doc(ticketId).set(newTicket);
 
-        // Reset inputs
-        resetForm();
-        clearImage();
+          // Notify user of saving
+          showToast("Tiquet registrat", `El tiquet de ${provider} s'ha guardat al núvol i està pendent de validació.`, 'success');
 
-        // Redirect to histories list to check it
-        switchTab('tab-llistat');
+          // Reset inputs
+          resetForm();
+          clearImage();
+
+          // Redirect to histories list to check it
+          switchTab('tab-llistat');
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, "tiquets/" + ticketId);
+        }
       }
 
       function resetForm() {
@@ -1014,12 +1145,7 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
         document.getElementById('form-user').value = activeUser;
       }
 
-      // Local storage physical write
-      function saveTicketsToStorage() {
-        localStorage.setItem('dps_tiquets', JSON.stringify(ticketsState));
-        recalculateStats();
-        applyFilters();
-      }
+
 
       // Stats counters in top section
       function recalculateStats() {
@@ -1084,6 +1210,12 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
         const query = document.getElementById('search-bar').value.toLowerCase();
         
         let filtered = ticketsState;
+
+        // Apply month picker filter (starts with YYYY-MM)
+        const monthVal = document.getElementById('filter-month').value;
+        if (monthVal) {
+          filtered = filtered.filter(t => t.data && t.data.startsWith(monthVal));
+        }
 
         // Apply state selector filter
         if (currentFilter === 'Pendent') {
@@ -1315,32 +1447,31 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
         lucide.createIcons();
       }
 
-      // Action to alter state of ticket (Validat/Rebutjat)
-      function validateTicket(id, targetState) {
-        ticketsState = ticketsState.map(t => {
-          if (t.id === id) {
-            return { ...t, estat: targetState };
+      // Action to alter state of ticket (Validat/Rebutjat) in Firestore
+      async function validateTicket(id, targetState) {
+        showToast("Actualitzant...", "S'està registrant l'estat del tiquet a Firestore...", 'info');
+        try {
+          await db.collection("tiquets").doc(id).update({ estat: targetState });
+          if (targetState === 'Validat') {
+            showToast("Aprovat correctament", "El tiquet s'ha mogut a l'estat Validat. S'inclourà als resums de despesa.", 'success');
+          } else {
+            showToast("Rebutjat", "El tiquet té l'estat Rebutjat. No comptarà per a les despeses generals.", 'error');
           }
-          return t;
-        });
-
-        saveTicketsToStorage();
-
-        if (targetState === 'Validat') {
-          showToast("Aprovat correctament", "El tiquet s'ha mogut a l'estat Validat. S'inclourà als resums de despesa.", 'success');
-        } else {
-          showToast("Rebutjat", "El tiquet té l'estat Rebutjat. No comptarà per a les despeses generals.", 'error');
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, "tiquets/" + id);
         }
-
-        renderValidationView();
       }
 
-      // Delete a ticket completely
-      function deleteTicket(id) {
+      // Delete a ticket completely from Firestore
+      async function deleteTicket(id) {
         if (confirm("Estàs segur que vols eliminar permanentment aquest tiquet de despesa?")) {
-          ticketsState = ticketsState.filter(t => t.id !== id);
-          saveTicketsToStorage();
-          showToast("Tiquet eliminat", "El tiquet s'ha descartat perfectament de la llista de dades.", 'info');
+          showToast("Eliminant...", "S'està eliminant el tiquet de Firestore...", 'info');
+          try {
+            await db.collection("tiquets").doc(id).delete();
+            showToast("Tiquet eliminat", "El tiquet s'ha descartat perfectament de la llista de dades.", 'info');
+          } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, "tiquets/" + id);
+          }
         }
       }
 
@@ -1508,7 +1639,7 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
       }
 
       // Restore simulation data for immediate verification testing
-      function loadDemoData() {
+      async function loadDemoData() {
         const demoMock = [
           {
             id: 't_demo1',
@@ -1538,7 +1669,7 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
           },
           {
             id: 't_demo3',
-            data: '2526-05-21',
+            data: '2026-05-21',
             proveedor: 'Autopistas AP-7',
             categoria: 'Autopistes',
             forma_pago: 'Vises Grup DPS (4455/0101/0106)',
@@ -1590,20 +1721,37 @@ Restringeix la resposta a un format JSON net i estricte, no hi posis codis de fo
           }
         ];
 
-        ticketsState = demoMock;
-        saveTicketsToStorage();
-        showToast("Dades carregades", "S'han ingressat 6 tiquets d'exemple (Pendents, Aprovats i Rebutjats) per testejar directament.", 'success');
-        
-        // Redirect to list
-        switchTab('tab-llistat');
+        showToast("Carregant...", "S'estan desant els tiquets de prova al Firestore...", 'info');
+        try {
+          const batch = db.batch();
+          demoMock.forEach(ticket => {
+            const docRef = db.collection("tiquets").doc(ticket.id);
+            batch.set(docRef, ticket);
+          });
+          await batch.commit();
+
+          showToast("Dades carregades", "S'han ingressat els tiquets d'exemple al núvol de Firestore.", 'success');
+          switchTab('tab-llistat');
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, "tiquets/demo_import");
+        }
       }
 
       // Clears all storage parameters
-      function clearAllDataStorage() {
+      async function clearAllDataStorage() {
         if (confirm("Atenció: Esborraràs absolutament la totalitat de tiquets que has guardat. Aquesta acció és irreversible. Continuar?")) {
-          ticketsState = [];
-          saveTicketsToStorage();
-          showToast("Històrics buidats", "S'han netejat tots els tiquets emmagatzemats.", 'info');
+          showToast("Netejant...", "S'estan esborrant els documents de la base de dades Firestore...", 'info');
+          try {
+            const qs = await db.collection("tiquets").get();
+            const batch = db.batch();
+            qs.forEach(doc => {
+              batch.delete(doc.ref);
+            });
+            await batch.commit();
+            showToast("Històrics buidats", "S'han netejat tots els tiquets emmagatzemats al núvol.", 'info');
+          } catch (error) {
+            handleFirestoreError(error, OperationType.DELETE, "tiquets/clear_all");
+          }
         }
       }
     </script>
