@@ -647,8 +647,16 @@
 
       // LocalStorage load of settings
       function loadSettingsFromStorage() {
-        const vKey = localStorage.getItem('dps_vision_key') || '';
-        const gKey = localStorage.getItem('dps_gemini_key') || '';
+        let vKey = localStorage.getItem('dps_vision_key');
+        if (vKey === null || vKey.trim() === '') {
+          vKey = 'AIzaSyBtSQQ5ygcblSrHXpsNk4YK5gQceXCBHIE';
+          localStorage.setItem('dps_vision_key', vKey);
+        }
+        let gKey = localStorage.getItem('dps_gemini_key');
+        if (gKey === null || gKey.trim() === '') {
+          gKey = 'AIzaSyAp9Uea15RIo2lKr2DVUXyL_k6bM6fRJTE';
+          localStorage.setItem('dps_gemini_key', gKey);
+        }
         const user = localStorage.getItem('dps_actual_user') || 'Dominic Paredes';
 
         document.getElementById('settings-vision-key').value = vKey;
@@ -822,8 +830,8 @@
           return;
         }
 
-        const visionKey = localStorage.getItem('dps_vision_key');
-        const geminiKey = localStorage.getItem('dps_gemini_key');
+        const visionKey = localStorage.getItem('dps_vision_key') || 'AIzaSyBtSQQ5ygcblSrHXpsNk4YK5gQceXCBHIE';
+        const geminiKey = localStorage.getItem('dps_gemini_key') || 'AIzaSyAp9Uea15RIo2lKr2DVUXyL_k6bM6fRJTE';
 
         if (!visionKey || !geminiKey) {
           showToast("Manca de claus", "No s'han trobat les API Keys. Entra a 'Configuració (⚙)' per afegir-les.", 'error');
